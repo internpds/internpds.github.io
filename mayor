@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Facebook Page Embed</title>
+</head>
+<body>
+
+  <!-- Facebook root and SDK script -->
+  <div id="fb-root"></div>
+  <script async defer crossorigin="anonymous" 
+    src="https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v22.0">
+  </script>
+
+  <!-- Facebook Page Plugin -->
+  <div class="fb-page" 
+       data-href="https://www.facebook.com/RiceChouChunMi" 
+       data-height="500" 
+       data-width="600" 
+       data-small-header="false" 
+       data-adapt-container-width="true" 
+       data-hide-cover="false" 
+       data-show-facepile="true" 
+       data-show-posts="true">
+    <blockquote cite="https://www.facebook.com/RiceChouChunMi" class="fb-xfbml-parse-ignore">
+      <a href="https://www.facebook.com/RiceChouChunMi">周春米</a>
+    </blockquote>
+  </div>
+
+</body>
+</html>
