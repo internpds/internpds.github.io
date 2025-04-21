@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>這是AI嗎？ - 猜猜看遊戲</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #0899c8, #0368b7);
+            min-height: 100vh;
+        }
+        
+        .game-container {
+            max-width: 800px;
+            perspective: 1000px;
+        }
+        
+        .card {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+        
+        .card-front, .card-back {
+            backface-visibility: hidden;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .card-back {
+            transform: rotateY(180deg);
+        }
+        
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            opacity: 0;
+            animation: confetti-fall 3s ease-in-out forwards;
+            z-index: 100;
+        }
+        
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-50px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        .emoji {
+            display: inline-block;
+            animation: emoji-bounce 0.5s ease-in-out;
+            transform-origin: center;
+            font-size: 4rem;
+        }
+        
+        @keyframes emoji-bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.4); }
+        }
+        
+        .progress-bar {
+            height: 10px;
+            transition: width 0.5s ease;
+        }
+        
+        .btn-hover:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .button-container {
+            transition: all 0.3s ease;
+        }
+        
+        .game-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background-color: #f3f4f6;
+        }
+        
+        .share-button {
+            transition: all 0.3s ease;
+        }
+        
+        .share-button:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+        
+        .share-container {
+            animation: fade-in 0.5s ease-out;
+        }
+        
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center p-4">
+    <!-- Game Container -->
+    <div class="game-container bg-white rounded-2xl shadow-2xl overflow-hidden w-full">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-500 to-blue-700" style="background: linear-gradient(to right, #0899c8, #0368b7);">
+            <div class="p-6 text-white text-center">
+                <h1 class="text-3xl md:text-4xl font-bold mb-2">這是AI嗎？</h1>
+                <p class="text-lg opacity-90">你能分辨出AI生成的圖片和真實照片的差別嗎？</p>
+            </div>
+        </div>
+        
+        <!-- Game Area -->
+        <div id="gameArea" class="p-6">
+            <!-- Start Screen -->
+            <div id="startScreen" class="text-center py-10">
+                <div class="mb-8">
+                    <!-- Magnifier Icon -->
+                    <svg class="w-24 h-24 mx-auto mb-4" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="40" cy="40" r="25" stroke="#0368b7" stroke-width="6" fill="white"/>
+                        <line x1="58" y1="58" x2="80" y2="80" stroke="#0368b7" stroke-width="6" stroke-linecap="round"/>
+                        <circle cx="40" cy="40" r="15" fill="#0899c8" fill-opacity="0.2"/>
+                    </svg>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">歡迎參加AI辨識挑戰！</h2>
+                    <p class="text-gray-600 mb-6">你將會看到10張圖片。你的任務是猜測每張圖片是由AI生成的還是真實的照片。</p>
+                </div>
+                <button id="startButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full text-lg transition-all duration-300 btn-hover" style="background-color: #0368b7;">
+                    開始遊戲
+                </button>
+            </div>
+            
+            <!-- Game Screen (Hidden initially) -->
+            <div id="gameScreen" class="hidden">
+                <!-- Progress -->
+                <div class="flex items-center justify-between mb-6">
+                    <div class="text-lg font-semibold text-gray-700">
+                        圖片 <span id="currentImage">1</span> / 10
+                    </div>
+                    <div class="text-lg font-semibold text-gray-700">
+                        分數: <span id="score">0</span>
+                    </div>
+                </div>
+                
+                <div class="w-full bg-gray-200 rounded-full h-2.5 mb-6">
+                    <div id="progressBar" class="h-2.5 rounded-full progress-bar" style="width: 10%; background-color: #0368b7;"></div>
+                </div>
+                
+                <!-- Image Card -->
+                <div class="relative h-80 md:h-96 mb-6">
+                    <div id="imageCard" class="card w-full h-full">
+                        <div class="card-front bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
+                            <img id="gameImage" class="game-image" src="" alt="猜猜這是AI還是真實照片">
+                        </div>
+                        <div class="card-back text-white rounded-xl flex flex-col items-center justify-center p-6 text-center" style="background-color: #0368b7;">
+                            <div id="resultEmoji" class="text-6xl mb-4 emoji"></div>
+                            <h3 id="resultTitle" class="text-2xl font-bold mb-2"></h3>
+                            <p id="resultText" class="text-lg opacity-90"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Buttons -->
+                <div id="guessButtons" class="button-container flex space-x-4">
+                    <button id="realButton" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg text-lg transition-all duration-300 btn-hover">
+                        真實照片 📸
+                    </button>
+                    <button id="aiButton" class="flex-1 text-white font-bold py-3 rounded-lg text-lg transition-all duration-300 btn-hover" style="background-color: #0899c8;">
+                        AI生成 🤖
+                    </button>
+                </div>
+                
+                <!-- Next Button (Hidden initially) -->
+                <button id="nextButton" class="hidden w-full mt-4 text-white font-bold py-3 rounded-lg text-lg transition-all duration-300 btn-hover" style="background-color: #0368b7;">
+                    下一張圖片
+                </button>
+            </div>
+            
+            <!-- Results Screen (Hidden initially) -->
+            <div id="resultsScreen" class="hidden text-center py-10">
+                <div id="finalEmoji" class="text-7xl mb-6 emoji"></div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">遊戲結束！</h2>
+                <p class="text-xl mb-4">你的最終得分: <span id="finalScore" class="font-bold" style="color: #0368b7;">0</span>/10</p>
+                <div id="levelResult" class="bg-gray-100 rounded-xl p-6 mb-8">
+                    <h3 id="levelTitle" class="text-2xl font-bold mb-2" style="color: #0368b7;"></h3>
+                    <p id="levelDescription" class="text-gray-700"></p>
+                </div>
+                
+                <!-- Share Results Section -->
+                <div class="share-container mb-8">
+                    <h3 class="text-xl font-bold text-gray-700 mb-3">分享你的成績</h3>
+                    <p class="text-gray-600 mb-4">炫耀一下你的AI辨識能力，挑戰你的朋友！</p>
+                    
+                    <!-- Share buttons -->
+                    <div class="flex justify-center space-x-4">
+                        <button id="shareFacebook" class="share-button bg-blue-600 text-white p-3 rounded-lg">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M18.77 7.46H14.5v-1.9c0-.9.6-1.1 1-1.1h3V.5h-4.33C10.24.5 9.5 3.44 9.5 5.32v2.15h-3v4h3v12h5v-12h3.85l.42-4z"/>
+                            </svg>
+                        </button>
+                        <button id="shareThreads" class="share-button bg-black text-white p-3 rounded-lg">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.5 12.186c0-3.397.851-6.25 2.495-8.303C5.85 1.578 8.603.398 12.18.374c3.581.024 6.334 1.204 8.184 3.509 1.645 2.052 2.495 4.906 2.495 8.303s-.85 6.25-2.495 8.303c-1.85 2.305-4.603 3.485-8.178 3.511zm-.007-22.5c-3.088.022-5.454.993-7.037 2.884-1.432 1.786-2.142 4.236-2.142 7.802 0 3.566.71 6.016 2.142 7.802 1.583 1.891 3.949 2.862 7.037 2.884 3.088-.022 5.454-.993 7.037-2.884 1.433-1.786 2.143-4.236 2.143-7.802 0-3.566-.71-6.016-2.143-7.802-1.583-1.891-3.949-2.862-7.037-2.884z"/>
+                                <path d="M15.01 19.36c-2.018 0-3.333-1.32-3.333-3.36v-7.2c0-.058.047-.105.105-.105h1.143c.058 0 .105.047.105.105v7.2c0 1.094.703 2.068 2.099 2.068 1.396 0 2.098-.974 2.098-2.068v-7.2c0-.058.047-.105.105-.105h1.143c.058 0 .105.047.105.105v7.2c0 2.04-1.315 3.36-3.333 3.36h-.237zM8.99 19.36c-2.018 0-3.333-1.32-3.333-3.36v-7.2c0-.058.047-.105.105-.105h1.143c.058 0 .105.047.105.105v7.2c0 1.094.703 2.068 2.099 2.068h.237c.058 0 .105.047.105.105v1.082c0 .058-.047.105-.105.105H8.99z"/>
+                            </svg>
+                        </button>
+                        <button id="shareLine" class="share-button bg-green-500 text-white p-3 rounded-lg">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.036 9.608.391.084.922.258 1.057.592.121.303.079.778.039 1.085l-.171 1.027c-.053.303-.242 1.186 1.039.647 1.281-.54 6.911-4.069 9.428-6.967 1.739-1.907 2.572-3.843 2.572-5.992zm-18.988-2.595c.129 0 .234.105.234.234v4.153h2.287c.129 0 .233.104.233.233v.842c0 .129-.104.234-.233.234h-3.363c-.063 0-.119-.025-.161-.065-.043-.041-.068-.098-.068-.161V8.168c0-.129.104-.233.233-.233h.838zm14.992 0c.129 0 .233.105.233.234v.842c0 .129-.104.234-.233.234h-2.287v.808h2.287c.129 0 .233.105.233.234v.842c0 .129-.104.233-.233.233h-2.287v.809h2.287c.129 0 .233.104.233.233v.842c0 .129-.104.234-.233.234h-3.363c-.063 0-.12-.025-.162-.065-.042-.041-.066-.098-.066-.161V8.168c0-.063.024-.12.066-.162s.099-.066.162-.066h3.363zm-10.442.001c.129 0 .234.105.234.233v5.229c0 .129-.105.234-.234.234h-.842c-.129 0-.233-.105-.233-.234V8.168c0-.128.104-.233.233-.233h.842zm1.698 4.162L13.402 8.4c.029-.038.061-.072.1-.101.039-.029.08-.053.123-.071.044-.018.091-.029.14-.033.048-.004.095-.001.143.01.047.01.091.027.133.05.042.024.08.054.112.089.033.036.059.076.079.122.02.045.033.093.039.143v5.229c0 .129-.104.234-.233.234h-.842c-.129 0-.234-.105-.234-.234V10.09l-1.12 1.526c-.022.03-.049.056-.079.077-.03.021-.064.038-.1.05-.036.012-.074.019-.112.021-.039.002-.077-.002-.113-.012-.036-.01-.069-.024-.099-.044-.03-.02-.055-.045-.076-.074l-1.141-1.552v3.179c0 .129-.104.234-.233.234h-.842c-.129 0-.233-.105-.233-.234V8.437c.003-.048.011-.093.028-.136.016-.043.04-.083.069-.117.029-.034.065-.063.104-.086.04-.022.083-.038.13-.045.047-.007.095-.008.143-.001.048.006.093.019.136.038.042.02.081.046.114.08.033.034.06.074.08.119l1.847 2.522 1.839-2.521z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <button id="playAgainButton" class="text-white font-bold py-3 px-8 rounded-full text-lg transition-all duration-300 btn-hover" style="background-color: #0368b7;">
+                    再玩一次
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Game state
+            const gameState = {
+                currentImageIndex: 0,
+                score: 0,
+                selectedImages: []
+            };
+            
+            // DOM elements
+            const startScreen = document.getElementById('startScreen');
+            const gameScreen = document.getElementById('gameScreen');
+            const resultsScreen = document.getElementById('resultsScreen');
+            const startButton = document.getElementById('startButton');
+            const realButton = document.getElementById('realButton');
+            const aiButton = document.getElementById('aiButton');
+            const guessButtons = document.getElementById('guessButtons');
+            const nextButton = document.getElementById('nextButton');
+            const playAgainButton = document.getElementById('playAgainButton');
+            const imageCard = document.getElementById('imageCard');
+            const gameImage = document.getElementById('gameImage');
+            const currentImageEl = document.getElementById('currentImage');
+            const scoreEl = document.getElementById('score');
+            const progressBar = document.getElementById('progressBar');
+            const resultEmoji = document.getElementById('resultEmoji');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultText = document.getElementById('resultText');
+            const finalScore = document.getElementById('finalScore');
+            const finalEmoji = document.getElementById('finalEmoji');
+            const levelTitle = document.getElementById('levelTitle');
+            const levelDescription = document.getElementById('levelDescription');
+            const shareFacebook = document.getElementById('shareFacebook');
+            const shareThreads = document.getElementById('shareThreads');
+            const shareLine = document.getElementById('shareLine');
+            
+            // ===== 圖片資料庫 =====
+            const imageDatabase = [
+                // AI生成的圖片
+                { url: "https://images.unsplash.com/photo-1682687982501-1e58ab814714", isAI: true },
+                { url: "https://images.unsplash.com/photo-1682687982468-bd52a0fc3ffb", isAI: true },
+                { url: "https://images.unsplash.com/photo-1682687982093-4ca1a2863a6e", isAI: true },
+                { url: "https://images.unsplash.com/photo-1682687982502-1e7f50391eb3", isAI: true },
+                { url: "https://images.unsplash.com/photo-1682687982167-d7fb3ed8541d", isAI: true },
+                { url: "https://images.unsplash.com/photo-1682687982183-c2937a74257c", isAI: true },
+                { url: "https://images.unsplash.com/photo-1682687982298-c7582eda9e1a", isAI: true },
+                // 真實照片
+                { url: "https://images.unsplash.com/photo-1682685797366-715d29e33f9d", isAI: false },
+                { url: "https://images.unsplash.com/photo-1682685797208-76e907fb8468", isAI: false },
+                { url: "https://images.unsplash.com/photo-1682685797661-9e0c87f59c60", isAI: false },
+                { url: "https://images.unsplash.com/photo-1682685797769-3d39c5d692b7", isAI: false },
+                { url: "https://images.unsplash.com/photo-1682685797828-d3b2561deef4", isAI: false },
+                { url: "https://images.unsplash.com/photo-1682685797439-c05bfa069f00", isAI: false },
+                { url: "https://images.unsplash.com/photo-1682685797527-63cc1220fed9", isAI: false }
+            ];
+            
+            // Level definitions based on score
+            const levels = [
+                { min: 0, max: 2, title: "AI新手", emoji: "🤔", description: "你才剛開始！多練習，你會越來越會分辨AI和真實照片的差異。" },
+                { min: 3, max: 5, title: "AI學徒", emoji: "🧐", description: "不錯喔！你有一些直覺，但還有提升辨識AI的空間。" },
+                { min: 6, max: 8, title: "AI偵探", emoji: "🕵️", description: "太厲害了！你有很好的眼力能發現AI生成的內容。你會是一個很棒的數位偵探！" },
+                { min: 9, max: 10, title: "AI專家", emoji: "🧠✨", description: "哇！你非常擅長區分AI和現實。在AI時代，你的洞察力就是超能力！" }
+            ];
+            
+            // Initialize game
+            function initGame() {
+                // Reset game state
+                gameState.currentImageIndex = 0;
+                gameState.score = 0;
+                
+                // Randomly select all 10 images from the database and shuffle them
+                gameState.selectedImages = [...imageDatabase].sort(() => 0.5 - Math.random()).slice(0, 10);
+                
+                // Update UI
+                updateScore();
+                loadCurrentImage();
+                
+                // Show game screen
+                startScreen.classList.add('hidden');
+                gameScreen.classList.remove('hidden');
+                resultsScreen.classList.add('hidden');
+            }
+            
+            // Load current image
+            function loadCurrentImage() {
+                const currentImage = gameState.selectedImages[gameState.currentImageIndex];
+                gameImage.src = currentImage.url;
+                currentImageEl.textContent = gameState.currentImageIndex + 1;
+                progressBar.style.width = `${(gameState.currentImageIndex + 1) * 10}%`;
+                
+                // Reset card state
+                imageCard.classList.remove('flipped');
+                
+                // Show guess buttons, hide next button
+                guessButtons.classList.remove('hidden');
+                guessButtons.style.opacity = '1';
+                nextButton.classList.add('hidden');
+                
+                // Enable buttons
+                realButton.disabled = false;
+                aiButton.disabled = false;
+            }
+            
+            // Update score display
+            function updateScore() {
+                scoreEl.textContent = gameState.score;
+            }
+            
+            // Handle guess
+            function handleGuess(isAIGuess) {
+                const currentImage = gameState.selectedImages[gameState.currentImageIndex];
+                const isCorrect = (isAIGuess === currentImage.isAI);
+                
+                // Disable buttons during animation
+                realButton.disabled = true;
+                aiButton.disabled = true;
+                
+                // Update score if correct
+                if (isCorrect) {
+                    gameState.score++;
+                    updateScore();
+                }
+                
+                // Show result
+                showResult(isCorrect, currentImage.isAI);
+                
+                // Hide guess buttons with animation
+                guessButtons.style.opacity = '0';
+                setTimeout(() => {
+                    guessButtons.classList.add('hidden');
+                    // Show next button
+                    nextButton.classList.remove('hidden');
+                }, 300);
+            }
+            
+            // Show result with animation
+            function showResult(isCorrect, wasAI) {
+                // Set result content
+                if (isCorrect) {
+                    resultEmoji.textContent = wasAI ? '🎯🤖' : '🎯📸';
+                    resultTitle.textContent = '答對了！';
+                    resultText.textContent = wasAI ? 
+                        '這確實是AI生成的。' : 
+                        '這確實是真實照片。';
+                    
+                    // Create confetti for correct answers
+                    createConfetti();
+                } else {
+                    resultEmoji.textContent = wasAI ? '❌🤖' : '❌📸';
+                    resultTitle.textContent = '不對喔！';
+                    resultText.textContent = wasAI ? 
+                        '這其實是AI生成的。' : 
+                        '這其實是真實照片。';
+                }
+                
+                // Flip card with animation
+                imageCard.classList.add('flipped');
+            }
+            
+            // Create confetti animation
+            function createConfetti() {
+                const colors = ['#0899c8', '#0368b7', '#1dd1a1', '#feca57', '#ff9ff3'];
+                const confettiCount = 50;
+                
+                for (let i = 0; i < confettiCount; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.left = `${Math.random() * 100}%`;
+                    confetti.style.animationDuration = `${Math.random() * 2 + 2}s`;
+                    confetti.style.animationDelay = `${Math.random() * 0.5}s`;
+                    document.body.appendChild(confetti);
+                    
+                    // Remove confetti after animation
+                    setTimeout(() => {
+                        confetti.remove();
+                    }, 3000);
+                }
+            }
+            
+            // Show final results
+            function showResults() {
+                // Update final score
+                finalScore.textContent = gameState.score;
+                
+                // Determine level based on score
+                const level = levels.find(l => gameState.score >= l.min && gameState.score <= l.max);
+                levelTitle.textContent = level.title;
+                levelDescription.textContent = level.description;
+                finalEmoji.textContent = level.emoji;
+                
+                // Show results screen
+                gameScreen.classList.add('hidden');
+                resultsScreen.classList.remove('hidden');
+                
+                // Create celebration effect for high scores
+                if (gameState.score >= 8) {
+                    createConfetti();
+                }
+                
+                // Setup share buttons
+                setupShareButtons();
+            }
+            
+            // Setup share buttons
+            function setupShareButtons() {
+                const shareText = `我在「這是AI嗎？」遊戲中獲得了 ${gameState.score}/10 分！我的等級是：${levelTitle.textContent}。你也來挑戰看看吧！`;
+                const shareUrl = window.location.href;
+                
+                // Facebook share
+                shareFacebook.addEventListener('click', () => {
+                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`, '_blank');
+                });
+                
+                // Threads share (opens as Instagram since Threads doesn't have direct sharing API)
+                shareThreads.addEventListener('click', () => {
+                    window.open(`https://www.instagram.com/?url=${encodeURIComponent(shareUrl)}`, '_blank');
+                });
+                
+                // Line share
+                shareLine.addEventListener('click', () => {
+                    window.open(`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`, '_blank');
+                });
+            }
+            
+            // Event listeners
+            startButton.addEventListener('click', initGame);
+            
+            realButton.addEventListener('click', () => handleGuess(false));
+            
+            aiButton.addEventListener('click', () => handleGuess(true));
+            
+            nextButton.addEventListener('click', () => {
+                gameState.currentImageIndex++;
+                
+                if (gameState.currentImageIndex < 10) {
+                    loadCurrentImage();
+                } else {
+                    showResults();
+                }
+            });
+            
+            playAgainButton.addEventListener('click', initGame);
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'932072b7830df1b8',t:'MTc0NDk0MDM2My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
